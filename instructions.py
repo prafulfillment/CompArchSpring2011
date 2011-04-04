@@ -22,6 +22,9 @@ class Instruction(object):
     def write(sim):
         pass
     
+    def name(self):
+        return self.__class__.__name__
+    
     def __repr__(self):
         return str(self)
 
@@ -32,7 +35,7 @@ class RType(Instruction):
         self.rt = rt
     
     def __str__(self):
-        return '%s %s, %s, %s' % (self.__class__.__name__, self.rd, self.rs, self.rt)
+        return '%s %s, %s, %s' % (self.name(), self.rd, self.rs, self.rt)
 
 class Add(RType):
     def execute(sim):
@@ -56,7 +59,9 @@ class Slt(RType):
 class JR(RType):
     def __init__(self, rt):
         self.rt = rt
-
+    
+    def __str__(self):
+        return '%s %s' % (self.name(), self.rt)
 
 
 class IType(Instruction):
@@ -66,7 +71,7 @@ class IType(Instruction):
         self.immediate = immediate
     
     def __str__(self):
-        return '%s %s, %s, %s' % (self.__class__.__name__, self.rt, self.rs, self.immediate)
+        return '%s %s, %s, %s' % (self.name(), self.rt, self.rs, self.immediate)
 
 class AddI(IType):
     pass
@@ -86,10 +91,18 @@ class Beq(IType):
 class Bne(IType):
     pass
 
-class LW(IType):
+class MemIType(IType):
+    def __init__(self, rt, offset):
+        self.rt = rt
+        self.offset = offset
+    
+    def __str__(self):
+        return '%s %s, %s' % (self.name(), self.rt, self.offset)
+
+class LW(MemIType):
     pass
 
-class SW(IType):
+class SW(MemIType):
     pass
 
 
@@ -129,4 +142,8 @@ def parse_instruction(instruction_name, args):
     if instruction_name not in supported_instructions:
         raise RuntimeError("The %s instruction is unsupported at this time." % instruction_name)
     
-    return supported_instructions[instruction_name](*args)
+    try:
+        return supported_instructions[instruction_name](*args)
+    except Exception, e:
+        print 'Instruction parsing failed for %s' % instruction_name
+        raise

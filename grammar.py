@@ -5,7 +5,6 @@ def enable_debug():
 	myparser.DEBUG_DEFAULT = True
 
 def joiner(l):
-	print l
 	return ''.join(l)
 
 chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'

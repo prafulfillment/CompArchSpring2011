@@ -1,7 +1,9 @@
 from pprint import pprint
 from instructions import parse_instruction
+import traceback
 import sys, time
 import grammar
+import simulator
 
 #grammar.enable_debug()
 
@@ -76,7 +78,7 @@ class Immediate(Argument):
 
 class Offset(Argument):
     def __init__(self, offset, offset_from):
-        self.offset = Integer(offset)
+        self.offset = Immediate(offset)
         self.offset_from = parse_arg(offset_from)
     
     def __str__(self):
@@ -89,7 +91,6 @@ class Offset(Argument):
         return True
 
 def parse_arg(arg):
-    #print arg
     if len(arg) == 2 and arg[0] == '$':
         return Register(arg[1])
     elif len(arg) == 2 and arg[0] == '0x':
@@ -102,6 +103,7 @@ def parse_arg(arg):
     else:
         return arg
 
-for inst_name, args in read_asm_file(filename):
-    args = [parse_arg(arg) for arg in args]
-    print parse_instruction(inst_name, args)
+insts = [parse_instruction(inst_name, [parse_arg(arg) for arg in args]) for inst_name, args in read_asm_file(filename)]
+assert all(inst is not None for inst in insts)
+
+sim = simulator.Simulator
