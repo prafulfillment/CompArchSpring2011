@@ -1,3 +1,5 @@
+from arguments import *
+
 # ---------------------------------------------------------------------------- #
 # The Instruction Constructs                                                   #
 # ---------------------------------------------------------------------------- #
@@ -7,38 +9,62 @@
 # lw, sw
 
 class Instruction(object):
-    def fetch(sim):
+    def fetch(self, sim):
         pass
     
-    def decode(sim):
+    def decode(self, sim):
         pass
     
-    def execute(sim):
+    def execute(self, sim):
         pass
     
-    def memory(sim):
+    def memory(self, sim):
         pass
     
-    def write(sim):
+    def write(self, sim):
         pass
     
     def name(self):
         return self.__class__.__name__
     
+    def result(self):
+        raise RuntimeError
+    
     def __repr__(self):
         return str(self)
 
 class RType(Instruction):
+    format = [
+        ('opcode', 6),
+        ('rs', 5),
+        ('rt', 5),
+        ('rd', 5),
+        ('sa', 5),
+        ('function', 6)
+    ]
+
     def __init__(self, rd, rs, rt):
+        assert rd.is_register()
+        assert rs.is_register()
+        assert rt.is_register()
+        self.opcode = 0
         self.rd = rd
         self.rs = rs
         self.rt = rt
+        self.result = None
+    
+    def result(self):
+        return self.result
     
     def __str__(self):
         return '%s %s, %s, %s' % (self.name(), self.rd, self.rs, self.rt)
 
 class Add(RType):
-    def execute(sim):
+    def encode(self):
+        out = 0
+        for piece, size in format
+
+    def execute(self, sim):
         pass
 
 class Sub(RType):
@@ -58,6 +84,7 @@ class Slt(RType):
 
 class JR(RType):
     def __init__(self, rt):
+        assert rt.is_register()
         self.rt = rt
     
     def __str__(self):
@@ -66,6 +93,9 @@ class JR(RType):
 
 class IType(Instruction):
     def __init__(self, rt, rs, immediate):
+        assert rt.is_register()
+        assert rs.is_register()
+        assert immediate.is_immediate()
         self.rt = rt
         self.rs = rs
         self.immediate = immediate
@@ -93,6 +123,8 @@ class Bne(IType):
 
 class MemIType(IType):
     def __init__(self, rt, offset):
+        assert rt.is_register()
+        assert offset.is_offset()
         self.rt = rt
         self.offset = offset
     
@@ -109,6 +141,7 @@ class SW(MemIType):
 
 class JType(Instruction):
     def __init__(self, target):
+        assert isinstance(target, Register)
         self.target = target
     
     def __str__(self):
@@ -147,3 +180,9 @@ def parse_instruction(instruction_name, args):
     except Exception, e:
         print 'Instruction parsing failed for %s' % instruction_name
         raise
+
+def encode_instruction(instruction):
+    if isinstance
+
+
+def decode_instruction(n):

@@ -1,5 +1,5 @@
-import myparser
-from myparser import *
+import parser
+from parser import *
 
 def enable_debug():
 	myparser.DEBUG_DEFAULT = True

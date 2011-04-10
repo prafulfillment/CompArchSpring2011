@@ -7,6 +7,15 @@ import simulator
 
 #grammar.enable_debug()
 
+register_map = {}
+for x in xrange(32):
+    register_map['r%d' % x] = x
+
+def map_lookup(dct, item):
+    while item in dct:
+        item = dct[item]
+    return item
+
 filename = sys.argv[1]
 def read_asm_file(filename):
     with open(filename, 'rb') as f:
@@ -35,73 +44,6 @@ def read_asm_file(filename):
             return None
     
     return parsed_instructions
-
-# ---------------------------------------------------------------------------- #
-# Instruction Argument Types                                                   #
-# ---------------------------------------------------------------------------- #
-
-class Argument(object):
-    def is_register(self):
-        return False
-    
-    def is_immediate(self):
-        return False
-    
-    def is_offset(self):
-        return False
-
-class Register(Argument):
-    def __init__(self, name):
-        self.name = name
-    
-    def __str__(self):
-        return 'Register(%s)' % self.name
-    
-    def __repr__(self):
-        return '$%s' % self.name
-    
-    def is_register(self):
-        return True
-
-class Immediate(Argument):
-    def __init__(self, number, base=10):
-        self.number = int(number, base)
-    
-    def __str__(self):
-        return 'Integer(%s)' % self.number
-    
-    def __repr__(self):
-        return '%d' % self.number
-    
-    def is_immediate(self):
-        return True
-
-class Offset(Argument):
-    def __init__(self, offset, offset_from):
-        self.offset = Immediate(offset)
-        self.offset_from = parse_arg(offset_from)
-    
-    def __str__(self):
-        return 'Offset(%s, %s)' % (self.offset, self.offset_from)
-    
-    def __repr__(self):
-        return '%r(%r)' % (self.offset, self.offset_from)
-    
-    def is_offset(self):
-        return True
-
-def parse_arg(arg):
-    if len(arg) == 2 and arg[0] == '$':
-        return Register(arg[1])
-    elif len(arg) == 2 and arg[0] == '0x':
-        return Immediate(arg[1], base=16)
-    elif (len(arg) == 1 and arg[0].isdigit()) or \
-         (len(arg) == 2 and (arg[0] == '-' and arg[1].isdigit())):
-        return Immediate(''.join(arg))
-    elif len(arg) == 2 and arg[0].isdigit():
-        return Offset(*arg)
-    else:
-        return arg
 
 insts = [parse_instruction(inst_name, [parse_arg(arg) for arg in args]) for inst_name, args in read_asm_file(filename)]
 assert all(inst is not None for inst in insts)
