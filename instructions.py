@@ -8,6 +8,12 @@ from arguments import *
 # beq, bne, j, jr
 # lw, sw
 
+def m_to_x(func): 
+    pass
+
+def m_to_m(func):
+    pass
+
 def x_to_x(func):
     def wrapper(self, sim, *args, **kwargs):
         n_min1_stage = sim.stages[sim.stages.index('execute') - 1]
@@ -22,9 +28,6 @@ def x_to_x(func):
                dest_register.register_number != 0 and \
                dest_register in self.source():
                 self.forwarded[item.register_number] = dest_value
-        else:
-            self.forwarded = None
-
 
 class Instruction(object):
     def fetch(self, sim):
