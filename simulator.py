@@ -56,12 +56,16 @@ class Simulator(object):
     def memory_size(self):
         return len(self.memory_data) << 2
     
-    def flush(self, from_stage):
-        for stage in self.stages[self.stages.index(from_stage):]:
+    def flush_after(self, from_stage):
+        for stage in self.stages[self.stages.index(from_stage)+1:]:
+            self.pipeline[stage] = self.results[stage] = None
+    
+    def flush_before(self, from_stage):
+        for stage in self.stages[:self.stages.index(from_stage)]:
             self.pipeline[stage] = self.results[stage] = None
     
     def jump_to(self, addr):
-        pass
+        self.pc = addr
     
     def load(self, instructions):
         for idx, instruction in enumerate(instructions):

@@ -8,9 +8,14 @@ from arguments import *
 # beq, bne, j, jr
 # lw, sw
 
+def init_forwarding(func):
+    def wrapper(self, *args, **kwargs):
+        self.forwarded = {}
+        return func(self, *args, **kwargs)
+    return wrapper
+
 def x_to_x(func):
     def wrapper(self, sim, *args, **kwargs):
-        self.forwarded = {}
         print 'X->X %s' % self
         if sim.results['memory'] is not None:
             n_min1_stage = sim.stages[sim.stages.index('execute') - 1]
@@ -20,7 +25,8 @@ def x_to_x(func):
 
             if dest_register.is_register() and \
                dest_register.register_number != 0 and \
-               dest_register in self.source():
+               dest_register in self.source() and \
+               dest_register not in self.forwarded:
                 print 'X->X Forwarding enabled for %s' % self
                 self.forwarded[dest_register] = dest_value
                 #self.forwarded = sim.results['execute']
@@ -41,6 +47,26 @@ def m_to_x(func):
                dest_register in self.source() and \
                dest_register not in self.forwarded:
                 print 'M->X Forwarding enabled for %s' % self
+                #self.forwarded = sim.results['memory']
+                self.forwarded[dest_register] = dest_value
+            print self.forwarded
+            
+        return func(self, sim, *args, **kwargs)
+    return wrapper
+
+def m_to_m(func):
+    def wrapper(self, sim, *args, **kwargs):
+        if sim.results['write'] is not None:
+            print 'Checking M->M'
+            n_min1_stage = sim.stages[sim.stages.index('memory') - 1]
+
+            dest_register, dest_value = sim.results['write']
+
+            if dest_register.is_register() and \
+               dest_register.register_number != 0 and \
+               dest_register in self.source() and \
+               isinstance(sim.pipeline[n_min1_stage], LW):
+                print 'M->M Forwarding enabled for %s' % self
                 #self.forwarded = sim.results['memory']
                 self.forwarded[dest_register] = dest_value
             print self.forwarded
@@ -73,6 +99,11 @@ def accept_forwarding(func):
         return func(self, *args, **kwargs)
     return wrapper
 
+def forwarding(func):
+    return init_forwarding(x_to_x(m_to_x(accept_forwarding(func))))
+
+def forwarding_with_m_to_m(func):
+    return init_forwarding(x_to_x(m_to_x(m_to_m(accept_forwarding(func)))))
 
 class Instruction(object):
     def fetch(self, sim):
@@ -99,10 +130,10 @@ class Instruction(object):
     def destination(self):
         raise RuntimeError
     
-    def put_result(self, sim, result):
+    def put_result(self, sim, result, stage='execute'):
         print 'Putting result,', result
         self._result = self.destination(), result
-        sim.results['execute'] = self.result()
+        sim.results[stage] = self.result()
     
     def name(self):
         return self.__class__.__name__
@@ -153,44 +184,32 @@ class Add(RType):
         for piece, size in format:
             pass
 
-    @x_to_x
-    @m_to_x
-    @accept_forwarding
+    @forwarding
     def execute(self, sim):
         self.put_result(sim, self.rs.value(sim) + self.rt.value(sim))
 
 class Sub(RType):
-    @x_to_x
-    @m_to_x
-    @accept_forwarding
+    @forwarding
     def execute(self, sim):
         self.put_result(sim, self.rs.value(sim) - self.rt.value(sim))
 
 class And(RType):
-    @x_to_x
-    @m_to_x
-    @accept_forwarding
+    @forwarding
     def execute(self, sim):
         self.put_result(sim, self.rs.value(sim) & self.rt.value(sim))
 
 class Or(RType):
-    @x_to_x
-    @m_to_x
-    @accept_forwarding
+    @forwarding
     def execute(self, sim):
         self.put_result(sim, self.rs.value(sim) | self.rt.value(sim))
 
 class Nor(RType):
-    @x_to_x
-    @m_to_x
-    @accept_forwarding
+    @forwarding
     def execute(self, sim):
         self.put_result(sim, ~(self.rs.value(sim) | self.rt.value(sim)))
 
 class Slt(RType):
-    @x_to_x
-    @m_to_x
-    @accept_forwarding
+    @forwarding
     def execute(self, sim):
         self.put_result(sim, int(self.rs.value(sim) < self.rt.value(sim)))
 
@@ -230,37 +249,31 @@ class IType(Instruction):
         return '%s %s, %s, %s' % (self.name(), self.rt, self.rs, self.immediate)
 
 class AddI(IType):
-    @x_to_x
-    @m_to_x
-    @accept_forwarding
+    @forwarding
     def execute(self, sim):
         self.put_result(sim, self.rs.value(sim) + self.immediate.value(sim))
 
 class AndI(IType):
-    @x_to_x
-    @m_to_x
-    @accept_forwarding
+    @forwarding
     def execute(self, sim):
         self.put_result(sim, self.rs.value(sim) + self.immediate.value(sim))
 
 class OrI(IType):
-    @x_to_x
-    @m_to_x
-    @accept_forwarding
+    @forwarding
     def execute(self, sim):
         self.put_result(sim, self.rs.value(sim) + self.immediate.value(sim))
 
 class SltI(IType):
-    @x_to_x
-    @m_to_x
-    @accept_forwarding
+    @forwarding
     def execute(self, sim):
         self.put_result(sim, self.rs.value(sim) + self.immediate.value(sim))
 
 class Beq(IType):
+    @forwarding
     def execute(self, sim):
         if self.rs.value(sim) == self.rt.value(sim):
-            sim.pc += 4 * self.immediate.value(sim)
+            sim.jump_to(self.immediate.value(sim) << 2)
+            sim.flush_before('execute')
 
     def destination(self):
         return None
@@ -269,9 +282,11 @@ class Beq(IType):
         return self.rs, self.rt
 
 class Bne(IType):
+    @forwarding
     def execute(self, sim):
-        if not self.rs.value(sim) == self.rt.value(sim):
-            sim.pc += 4 * self.immediate.value(sim)
+        if self.rs.value(sim) != self.rt.value(sim):
+            sim.jump_to(self.immediate.value(sim) << 2)
+            sim.flush_before('execute')
 
     def destination(self):
         return None
@@ -294,7 +309,17 @@ class LW(MemIType):
         return self.rt
     
     def source(self):
-        return [self.offset]
+        return [self.offset.from_offset]
+    
+    @init_forwarding
+    @x_to_x
+    @m_to_x
+    def execute(self, sim):
+        pass
+
+    @accept_forwarding
+    def memory(self, sim):
+        self.put_result(sim, sim.read_memory(self.offset.value()), stage='memory')
 
 class SW(MemIType):
     def destination(self):
@@ -302,8 +327,17 @@ class SW(MemIType):
     
     def source(self):
         return [self.rt]
+    
+    @init_forwarding
+    @x_to_x
+    @m_to_x
+    @m_to_m
+    def execute(self, sim):
+        pass
 
-
+    @accept_forwarding
+    def memory(self, sim):
+        sim.write_memory(self.offset.value(sim), self.rt.value(sim))
 
 class JType(Instruction):
     def __init__(self, target):
@@ -314,7 +348,14 @@ class JType(Instruction):
         return '%s %s' % (self.__class__.__name__, self.target)
 
 class J(JType):
-    pass
+    def destination(self):
+        return None
+    
+    def source(self):
+        return (self.target,)
+    
+    def execute(self, sim):
+
 
 
 supported_instructions = {
