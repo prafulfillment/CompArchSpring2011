@@ -19,6 +19,8 @@ class Simulator(object):
         self.registers = [0 for x in xrange(32)]
         
         #self.instructions = None
+        self.instruction_count = 0
+        self.cycle_count = 0
         self.stages = 'fetch', 'decode', 'execute', 'memory', 'write'
         self.pipeline = {}
         self.results = {}
@@ -58,23 +60,35 @@ class Simulator(object):
     
     def flush_after(self, from_stage):
         for stage in self.stages[self.stages.index(from_stage)+1:]:
+            print 'Flushing %s' % self.pipeline[stage]
             self.pipeline[stage] = self.results[stage] = None
+            self.pc -= 4
     
     def flush_before(self, from_stage):
         for stage in self.stages[:self.stages.index(from_stage)]:
+            print 'Flushing %s' % self.pipeline[stage]
             self.pipeline[stage] = self.results[stage] = None
+            self.pc -= 4
     
     def jump_to(self, addr):
+        print 'Jumping to 0x%x' % addr
         self.pc = addr
+    
+    def jump_relative_to(self, addr):
+        print 'Jumping relative to 0x%x' % addr
+        self.pc += addr
+        print 'PC is now %x' % self.pc
     
     def load(self, instructions):
         for idx, instruction in enumerate(instructions):
             addr = idx * 4 + BASE_MEMORY
             self.write_word(addr, instruction)
     
-    def run(self):
+    def run(self, start_pc=BASE_MEMORY):
         print 'Run'
-        self.pc = BASE_MEMORY
+        self.instruction_count = 0
+        self.cycle_count = 0
+        self.pc = start_pc
         while self.pc == BASE_MEMORY or any(self.pipeline[stage] is not None for stage in self.pipeline):
             #BASE_MEMORY <= self.pc <= self.memory_size():
             self.cycle()
@@ -82,10 +96,12 @@ class Simulator(object):
             print hex(self.pc), self.registers
         
         print 'Execution finished'
+        print '%d instructions were run in %d cycles' % (self.instruction_count, self.cycle_count)
         print self.registers
     
     def cycle(self):
         print '=' * 40, 'NEW CYCLE', '=' * 40
+        self.cycle_count += 1
         for stage in self.stages:
             self.do_stage(stage)
 
@@ -130,6 +146,7 @@ class Simulator(object):
         if self.pipeline['write'] is not None:
             print '-' * 30, 'write stage for %s' % self.pipeline['write'], '-' * 30
             self.pipeline['write'].write(self)
+            self.instruction_count += 1
     
     #@decode_register
     def write_register(self, register, data):

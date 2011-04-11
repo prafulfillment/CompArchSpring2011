@@ -272,7 +272,7 @@ class Beq(IType):
     @forwarding
     def execute(self, sim):
         if self.rs.value(sim) == self.rt.value(sim):
-            sim.jump_to(self.immediate.value(sim) << 2)
+            sim.jump_relative_to(self.immediate.value(sim) << 2)
             sim.flush_before('execute')
 
     def destination(self):
@@ -285,7 +285,7 @@ class Bne(IType):
     @forwarding
     def execute(self, sim):
         if self.rs.value(sim) != self.rt.value(sim):
-            sim.jump_to(self.immediate.value(sim) << 2)
+            sim.jump_relative_to(self.immediate.value(sim) << 2)
             sim.flush_before('execute')
 
     def destination(self):
@@ -309,7 +309,7 @@ class LW(MemIType):
         return self.rt
     
     def source(self):
-        return [self.offset.from_offset]
+        return [self.offset.offset_from]
     
     @init_forwarding
     @x_to_x
@@ -319,7 +319,7 @@ class LW(MemIType):
 
     @accept_forwarding
     def memory(self, sim):
-        self.put_result(sim, sim.read_memory(self.offset.value()), stage='memory')
+        self.put_result(sim, sim.read_word(self.offset.value(sim)), stage='memory')
 
 class SW(MemIType):
     def destination(self):
@@ -337,11 +337,11 @@ class SW(MemIType):
 
     @accept_forwarding
     def memory(self, sim):
-        sim.write_memory(self.offset.value(sim), self.rt.value(sim))
+        sim.write_word(self.offset.value(sim), self.rt.value(sim))
 
 class JType(Instruction):
     def __init__(self, target):
-        assert isinstance(target, Register)
+        assert target.is_immediate()
         self.target = target
     
     def __str__(self):
@@ -355,6 +355,8 @@ class J(JType):
         return (self.target,)
     
     def execute(self, sim):
+        sim.jump_to(self.target.value(sim))
+        sim.flush_before('execute')
 
 
 
