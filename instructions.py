@@ -303,8 +303,6 @@ class SW(MemIType):
     def source(self):
         return [self.rt]
 
-
-
 class JType(Instruction):
     def __init__(self, target):
         assert isinstance(target, Register)
