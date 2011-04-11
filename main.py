@@ -38,6 +38,9 @@ def read_asm_file(filename):
     
     return parsed_instructions
 
+for thing in read_asm_file(filename):
+    print thing
+
 insts = [parse_instruction(inst_name, [parse_arg(arg) for arg in args]) for inst_name, args in read_asm_file(filename)]
 assert all(inst is not None for inst in insts)
 
