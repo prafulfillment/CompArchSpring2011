@@ -258,6 +258,10 @@ class SltI(IType):
         self.put_result(sim, self.rs.value(sim) + self.immediate.value(sim))
 
 class Beq(IType):
+    def execute(self, sim):
+        if self.rs.value(sim) == self.rt.value(sim):
+            sim.pc += 4 * self.immediate.value(sim)
+
     def destination(self):
         return None
     
@@ -265,6 +269,10 @@ class Beq(IType):
         return self.rs, self.rt
 
 class Bne(IType):
+    def execute(self, sim):
+        if not self.rs.value(sim) == self.rt.value(sim):
+            sim.pc += 4 * self.immediate.value(sim)
+
     def destination(self):
         return None
     
