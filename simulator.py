@@ -34,6 +34,10 @@ class Simulator(object):
         
         #self.instructions = None
         self.stages = 'fetch', 'decode', 'execute', 'memory', 'write'
+        self.pipeline = {}
+        for stage in self.stages:
+            self.pipeline[stage] = None
+        
         self.results = {}
         self.reset_memory()
     
@@ -68,10 +72,16 @@ class Simulator(object):
     def load(self, instructions):
         for idx, instruction in enumerate(instructions):
             addr = idx * 4 + 0x1000
-            self.write_word(instruction)
+            self.write_word(addr, instruction)
     
     def run(self):
         self.pc = 0x1000
+        while 0x1000 <= self.pc <= self.memory_size():
+            self.cycle()
+    
+    def cycle(self):
+        for stage in self.stages:
+            self.do_stage(stage)
 
     def do_stage(self, stage):
         if stage not in self.stages:
@@ -80,19 +90,27 @@ class Simulator(object):
         getattr(self, stage)()
 
     def fetch(self):
-        pass
+        for idx, stage in reversed(enumerate(self.stages)):
+            if idx > 0:
+                self.pipeline[stage] = self.pipeline[self.stages[idx - 1]]
+
+        self.pipeline['fetch'] = self.read_word(self.pc)
     
     def decode(self):
-        pass
+        if self.pipeline['decode'] is not None:
+            self.pipeline['decode'].decode(self)
     
     def execute(self):
-        pass
+        if self.pipeline['execute'] is not None:
+            self.pipeline['execute'].execute(self)
     
     def memory(self):
-        pass
+        if self.pipeline['memory'] is not None:
+            self.pipeline['memory'].memory(self)
     
     def write(self):
-        pass
+        if self.pipeline['write'] is not None:
+            self.pipeline['write'].write(self)
     
     #@decode_register
     def write_register(self, register, data):

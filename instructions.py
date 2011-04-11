@@ -8,6 +8,12 @@ from arguments import *
 # beq, bne, j, jr
 # lw, sw
 
+def x_to_x(func):
+    def wrapper(self, sim, *args, **kwargs):
+        n_min1_stage = sim.stages[sim.stages.index('execute') - 1]
+
+        if hasattr(self, 'rt') and self.rt == sim.pipeline[n_min1_stage].rd
+
 class Instruction(object):
     def fetch(self, sim):
         pass
@@ -23,6 +29,9 @@ class Instruction(object):
     
     def write(self, sim):
         pass
+    
+    def destination(self):
+        raise RuntimeError
     
     def name(self):
         return self.__class__.__name__
@@ -53,6 +62,9 @@ class RType(Instruction):
         self.rt = rt
         self.result = None
     
+    def destination(self):
+        return self.rd
+    
     def result(self):
         return self.result
     
@@ -62,10 +74,15 @@ class RType(Instruction):
 class Add(RType):
     def encode(self):
         out = 0
-        for piece, size in format
+        for piece, size in format:
+            pass
 
     def execute(self, sim):
-        pass
+        self.result = self.rd, sim.read_register(self.rs) + sim.read_register(self.rt)
+        sim.results['execute'] = self.result
+    
+    def write(self, sim):
+        sim.write_register(*self.rd)
 
 class Sub(RType):
     pass
