@@ -21,10 +21,11 @@ class Simulator(object):
         #self.instructions = None
         self.stages = 'fetch', 'decode', 'execute', 'memory', 'write'
         self.pipeline = {}
+        self.results = {}
         for stage in self.stages:
             self.pipeline[stage] = None
+            self.results[stage] = None
         
-        self.results = {}
         self.reset_memory()
     
     def reset_memory(self):
@@ -55,6 +56,13 @@ class Simulator(object):
     def memory_size(self):
         return len(self.memory_data) << 2
     
+    def flush(self, from_stage):
+        for stage in self.stages[self.stages.index(from_stage):]:
+            self.pipeline[stage] = self.results[stage] = None
+    
+    def jump_to(self, addr):
+        pass
+    
     def load(self, instructions):
         for idx, instruction in enumerate(instructions):
             addr = idx * 4 + BASE_MEMORY
@@ -69,9 +77,11 @@ class Simulator(object):
             self.pc += 4
             print hex(self.pc), self.registers
         
+        print 'Execution finished'
         print self.registers
     
     def cycle(self):
+        print '=' * 40, 'NEW CYCLE', '=' * 40
         for stage in self.stages:
             self.do_stage(stage)
 
@@ -88,29 +98,33 @@ class Simulator(object):
                 if instruction is not None:
                     print 'Moved %s from %s to %s' % (instruction, self.stages[idx - 1], stage)
                 self.pipeline[stage] = instruction
+                self.results[stage] = self.results[self.stages[idx - 1]]
 
         if BASE_MEMORY <= self.pc < self.memory_size():
             self.pipeline['fetch'] = self.read_word(self.pc)
             print 'Fetched new instruction: %s' % self.pipeline['fetch']
         else:
             self.pipeline['fetch'] = None
+        self.results['fetch'] = None
     
     def decode(self):
         if self.pipeline['decode'] is not None:
+            print '-' * 30, 'decode stage for %s' % self.pipeline['decode'], '-' * 30
             self.pipeline['decode'].decode(self)
     
     def execute(self):
         if self.pipeline['execute'] is not None:
-            print self.pipeline['execute']
-            print self.pipeline['execute'].execute
+            print '-' * 30, 'execute stage for %s' % self.pipeline['execute'], '-' * 30
             self.pipeline['execute'].execute(self)
     
     def memory(self):
         if self.pipeline['memory'] is not None:
+            print '-' * 30, 'memory stage for %s' % self.pipeline['memory'], '-' * 30
             self.pipeline['memory'].memory(self)
     
     def write(self):
         if self.pipeline['write'] is not None:
+            print '-' * 30, 'write stage for %s' % self.pipeline['write'], '-' * 30
             self.pipeline['write'].write(self)
     
     #@decode_register

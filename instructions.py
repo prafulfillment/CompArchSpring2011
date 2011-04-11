@@ -10,37 +10,58 @@ from arguments import *
 
 def x_to_x(func):
     def wrapper(self, sim, *args, **kwargs):
-        n_min1_stage = sim.stages[sim.stages.index('execute') - 1]
+        self.forwarded = {}
+        print 'X->X %s' % self
+        if sim.results['memory'] is not None:
+            n_min1_stage = sim.stages[sim.stages.index('execute') - 1]
 
-        #if sim.pipeline[n_min1_stage] is not None and \
-        #   any(item == sim.pipeline[n_min1_stage].destination()
-        #       for item in self.source()):
-        #    self.forwarded = None
-        #else:
-        self.forwarded = None
-        dest_register, dest_value = sim.results['execute']
-        print 'X->X Checking forwarding', dest_register, self.source()
+            dest_register, dest_value = sim.results['memory']
+            print 'X->X Checking forwarding'
 
-        if dest_register.is_register() and \
-           dest_register.register_number != 0 and \
-           dest_register in self.source():
-            print 'Forwarding enabled'
-            self.forwarded = dest_register, dest_value
+            if dest_register.is_register() and \
+               dest_register.register_number != 0 and \
+               dest_register in self.source():
+                print 'X->X Forwarding enabled for %s' % self
+                self.forwarded[dest_register] = dest_value
+                #self.forwarded = sim.results['execute']
+        return func(self, sim, *args, **kwargs)
+    wrapper.__name__ = 'x-to-x-wrapper'
+    return wrapper
+
+def m_to_x(func):
+    def wrapper(self, sim, *args, **kwargs):
+        if sim.results['write'] is not None:
+            print 'Checking M->X'
+            n_min2_stage = sim.stages[sim.stages.index('execute') - 2]
+
+            dest_register, dest_value = sim.results['write']
+
+            if dest_register.is_register() and \
+               dest_register.register_number != 0 and \
+               dest_register in self.source() and \
+               dest_register not in self.forwarded:
+                print 'M->X Forwarding enabled for %s' % self
+                #self.forwarded = sim.results['memory']
+                self.forwarded[dest_register] = dest_value
+            print self.forwarded
+            
         return func(self, sim, *args, **kwargs)
     return wrapper
 
 def accept_forwarding(func):
     def wrapper(self, *args, **kwargs):
         print '%s accepting forwarding' % self
-        if self.forwarded is not None:
-            forwarded_register, forwarded_value = self.forwarded
-            
+        if hasattr(self, 'forwarded') and self.forwarded is not None:
             old_values = {}
-            for source in self.source():
-                if source == forwarded_register:
-                    old_values[source] = source.value
-                    source.value = lambda sim: forwarded_value
-                    print 'Rewriting register %s to return %d' % (source, forwarded_value)
+            print self.forwarded
+            for forwarded_register in self.forwarded:
+                for source in self.source():
+                    print source, forwarded_register
+                    if source == forwarded_register:
+                        old_values[source] = source.value
+                        source.value = lambda sim, forwarded_register=forwarded_register: self.forwarded[forwarded_register]
+                        print 'Rewriting register %s to return %d' % (source, self.forwarded[forwarded_register])
+                        #break
             
             return_value = func(self, *args, **kwargs)
             
@@ -68,7 +89,7 @@ class Instruction(object):
     
     def write(self, sim):
         if self.destination() is not None:
-            print self.result()
+            print 'result:', self.result()
             dest_register, value = self.result()
             dest_register.write(sim, value)
     
@@ -133,36 +154,42 @@ class Add(RType):
             pass
 
     @x_to_x
+    @m_to_x
     @accept_forwarding
     def execute(self, sim):
         self.put_result(sim, self.rs.value(sim) + self.rt.value(sim))
 
 class Sub(RType):
     @x_to_x
+    @m_to_x
     @accept_forwarding
     def execute(self, sim):
         self.put_result(sim, self.rs.value(sim) - self.rt.value(sim))
 
 class And(RType):
     @x_to_x
+    @m_to_x
     @accept_forwarding
     def execute(self, sim):
         self.put_result(sim, self.rs.value(sim) & self.rt.value(sim))
 
 class Or(RType):
     @x_to_x
+    @m_to_x
     @accept_forwarding
     def execute(self, sim):
         self.put_result(sim, self.rs.value(sim) | self.rt.value(sim))
 
 class Nor(RType):
     @x_to_x
+    @m_to_x
     @accept_forwarding
     def execute(self, sim):
         self.put_result(sim, ~(self.rs.value(sim) | self.rt.value(sim)))
 
 class Slt(RType):
     @x_to_x
+    @m_to_x
     @accept_forwarding
     def execute(self, sim):
         self.put_result(sim, int(self.rs.value(sim) < self.rt.value(sim)))
@@ -203,26 +230,46 @@ class IType(Instruction):
         return '%s %s, %s, %s' % (self.name(), self.rt, self.rs, self.immediate)
 
 class AddI(IType):
+    @x_to_x
+    @m_to_x
+    @accept_forwarding
     def execute(self, sim):
         self.put_result(sim, self.rs.value(sim) + self.immediate.value(sim))
 
-
 class AndI(IType):
-    pass
+    @x_to_x
+    @m_to_x
+    @accept_forwarding
+    def execute(self, sim):
+        self.put_result(sim, self.rs.value(sim) + self.immediate.value(sim))
 
 class OrI(IType):
-    pass
+    @x_to_x
+    @m_to_x
+    @accept_forwarding
+    def execute(self, sim):
+        self.put_result(sim, self.rs.value(sim) + self.immediate.value(sim))
 
 class SltI(IType):
-    pass
+    @x_to_x
+    @m_to_x
+    @accept_forwarding
+    def execute(self, sim):
+        self.put_result(sim, self.rs.value(sim) + self.immediate.value(sim))
 
 class Beq(IType):
     def destination(self):
         return None
+    
+    def source(self):
+        return self.rs, self.rt
 
 class Bne(IType):
     def destination(self):
         return None
+    
+    def source(self):
+        return self.rs, self.rt
 
 class MemIType(IType):
     def __init__(self, rt, offset):
