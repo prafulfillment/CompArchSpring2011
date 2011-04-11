@@ -12,18 +12,45 @@ def x_to_x(func):
     def wrapper(self, sim, *args, **kwargs):
         n_min1_stage = sim.stages[sim.stages.index('execute') - 1]
 
-        if any(item == sim.pipeline[n_min1_stage].destination()
-               for item in self.source()):
-            self.forwarded = None
-        else:
-            self.forwarded = {}
-            dest_register, dest_value = sim.results['execute']
-            if dest_register.is_register() and \
-               dest_register.register_number != 0 and \
-               dest_register in self.source():
-                self.forwarded[item.register_number] = dest_value
-        else:
-            self.forwarded = None
+        #if sim.pipeline[n_min1_stage] is not None and \
+        #   any(item == sim.pipeline[n_min1_stage].destination()
+        #       for item in self.source()):
+        #    self.forwarded = None
+        #else:
+        self.forwarded = None
+        dest_register, dest_value = sim.results['execute']
+        print 'X->X Checking forwarding', dest_register, self.source()
+
+        if dest_register.is_register() and \
+           dest_register.register_number != 0 and \
+           dest_register in self.source():
+            print 'Forwarding enabled'
+            self.forwarded = dest_register, dest_value
+        return func(self, sim, *args, **kwargs)
+    return wrapper
+
+def accept_forwarding(func):
+    def wrapper(self, *args, **kwargs):
+        print '%s accepting forwarding' % self
+        if self.forwarded is not None:
+            forwarded_register, forwarded_value = self.forwarded
+            
+            old_values = {}
+            for source in self.source():
+                if source == forwarded_register:
+                    old_values[source] = source.value
+                    source.value = lambda sim: forwarded_value
+                    print 'Rewriting register %s to return %d' % (source, forwarded_value)
+            
+            return_value = func(self, *args, **kwargs)
+            
+            for source in old_values:
+                source.value = old_values[source]
+            
+            return return_value
+        
+        return func(self, *args, **kwargs)
+    return wrapper
 
 
 class Instruction(object):
@@ -40,7 +67,10 @@ class Instruction(object):
         pass
     
     def write(self, sim):
-        pass
+        if self.destination() is not None:
+            print self.result()
+            dest_register, value = self.result()
+            dest_register.write(sim, value)
     
     def source(self):
         raise RuntimeError
@@ -49,13 +79,16 @@ class Instruction(object):
         raise RuntimeError
     
     def put_result(self, sim, result):
-        self.result = self.destination(), result
-        sim.results['execute'] = self.result
+        print 'Putting result,', result
+        self._result = self.destination(), result
+        sim.results['execute'] = self.result()
     
     def name(self):
         return self.__class__.__name__
     
     def result(self):
+        if hasattr(self, '_result'):
+            return self._result
         raise RuntimeError
     
     def __repr__(self):
@@ -79,7 +112,7 @@ class RType(Instruction):
         self.rd = rd
         self.rs = rs
         self.rt = rt
-        self.result = None
+        self._result = None
     
     def source(self):
         return self.rs, self.rt
@@ -88,10 +121,7 @@ class RType(Instruction):
         return self.rd
     
     def result(self):
-        return self.result
-    
-    def write(self, sim):
-        sim.write_register(*self.result)
+        return self._result
     
     def __str__(self):
         return '%s %s, %s, %s' % (self.name(), self.rd, self.rs, self.rt)
@@ -102,28 +132,40 @@ class Add(RType):
         for piece, size in format:
             pass
 
+    @x_to_x
+    @accept_forwarding
     def execute(self, sim):
-        self.put_result(self.rs.value(sim) + self.rt.value(sim))
+        self.put_result(sim, self.rs.value(sim) + self.rt.value(sim))
 
 class Sub(RType):
+    @x_to_x
+    @accept_forwarding
     def execute(self, sim):
-        self.put_result(self.rs.value(sim) - self.rt.value(sim))
+        self.put_result(sim, self.rs.value(sim) - self.rt.value(sim))
 
 class And(RType):
+    @x_to_x
+    @accept_forwarding
     def execute(self, sim):
-        self.put_result(self.rs.value(sim) & self.rt.value(sim))
+        self.put_result(sim, self.rs.value(sim) & self.rt.value(sim))
 
 class Or(RType):
+    @x_to_x
+    @accept_forwarding
     def execute(self, sim):
-        self.put_result(self.rs.value(sim) | self.rt.value(sim))
+        self.put_result(sim, self.rs.value(sim) | self.rt.value(sim))
 
 class Nor(RType):
+    @x_to_x
+    @accept_forwarding
     def execute(self, sim):
-        self.put_result(~(self.rs.value(sim) | self.rt.value(sim)))
+        self.put_result(sim, ~(self.rs.value(sim) | self.rt.value(sim)))
 
 class Slt(RType):
+    @x_to_x
+    @accept_forwarding
     def execute(self, sim):
-        self.put_result(int(self.rs.value(sim) < self.rt.value(sim)))
+        self.put_result(sim, int(self.rs.value(sim) < self.rt.value(sim)))
 
 class JR(RType):
     def __init__(self, rt):
@@ -149,6 +191,7 @@ class IType(Instruction):
         self.rt = rt
         self.rs = rs
         self.immediate = immediate
+        self._result = None
     
     def source(self):
         return self.rs, self.immediate
@@ -161,11 +204,7 @@ class IType(Instruction):
 
 class AddI(IType):
     def execute(self, sim):
-        self.put_result(self.rs.value(sim) + self.immediate.value(sim))
-        sim.results['execute'] = 
-    
-    def write(self, sim):
-        self.
+        self.put_result(sim, self.rs.value(sim) + self.immediate.value(sim))
 
 
 class AndI(IType):
@@ -254,7 +293,8 @@ def parse_instruction(instruction_name, args):
         raise
 
 def encode_instruction(instruction):
-    if isinstance
+    pass
 
 
 def decode_instruction(n):
+    pass

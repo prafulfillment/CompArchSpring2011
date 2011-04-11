@@ -4,21 +4,7 @@ from instructions import *
 # The Simulator and Helper Functions                                           #
 # ---------------------------------------------------------------------------- #
 
-def decode_register(func):
-    """ Decorator for simulator functions that take a register in.  Decodes the
-    register into a register number.
-    """
-    def wrapper(self, register, *args, **kwargs):
-        original_register = register
-
-        while register in self.register_map:
-            register = self.register_map[register]
-        
-        if 0 <= register < 32:
-            return func(self, register_number, *args, **kwargs)
-        else:
-            raise RuntimeError('Invalid register given: %s' % original_register)
-    return wrapper
+BASE_MEMORY = 0x1000
 
 def addr_check(func):
     def wrapper(self, addr, *args, **kwargs):
@@ -42,11 +28,11 @@ class Simulator(object):
         self.reset_memory()
     
     def reset_memory(self):
-        self.memory = [0 for _ in xrange(0x1000 >> 2)]
+        self.memory_data = [0 for _ in xrange(BASE_MEMORY >> 2)]
     
     @addr_check
     def read_word(self, addr):
-        return self.memory[addr]
+        return self.memory_data[addr]
     
     @addr_check
     def write_word(self, addr, word):
@@ -61,23 +47,29 @@ class Simulator(object):
                 value += ord(char)
             word = value
         
-        while addr >= len(self.memory):
-            self.memory.append(0)
+        while addr >= len(self.memory_data):
+            self.memory_data.append(0)
 
-        self.memory[addr] = word
+        self.memory_data[addr] = word
     
     def memory_size(self):
-        return len(self.memory) << 2
+        return len(self.memory_data) << 2
     
     def load(self, instructions):
         for idx, instruction in enumerate(instructions):
-            addr = idx * 4 + 0x1000
+            addr = idx * 4 + BASE_MEMORY
             self.write_word(addr, instruction)
     
     def run(self):
-        self.pc = 0x1000
-        while 0x1000 <= self.pc <= self.memory_size():
+        print 'Run'
+        self.pc = BASE_MEMORY
+        while self.pc == BASE_MEMORY or any(self.pipeline[stage] is not None for stage in self.pipeline):
+            #BASE_MEMORY <= self.pc <= self.memory_size():
             self.cycle()
+            self.pc += 4
+            print hex(self.pc), self.registers
+        
+        print self.registers
     
     def cycle(self):
         for stage in self.stages:
@@ -90,11 +82,18 @@ class Simulator(object):
         getattr(self, stage)()
 
     def fetch(self):
-        for idx, stage in reversed(enumerate(self.stages)):
+        for idx, stage in reversed(list(enumerate(self.stages))):
             if idx > 0:
-                self.pipeline[stage] = self.pipeline[self.stages[idx - 1]]
+                instruction = self.pipeline[self.stages[idx - 1]]
+                if instruction is not None:
+                    print 'Moved %s from %s to %s' % (instruction, self.stages[idx - 1], stage)
+                self.pipeline[stage] = instruction
 
-        self.pipeline['fetch'] = self.read_word(self.pc)
+        if BASE_MEMORY <= self.pc < self.memory_size():
+            self.pipeline['fetch'] = self.read_word(self.pc)
+            print 'Fetched new instruction: %s' % self.pipeline['fetch']
+        else:
+            self.pipeline['fetch'] = None
     
     def decode(self):
         if self.pipeline['decode'] is not None:
@@ -102,6 +101,8 @@ class Simulator(object):
     
     def execute(self):
         if self.pipeline['execute'] is not None:
+            print self.pipeline['execute']
+            print self.pipeline['execute'].execute
             self.pipeline['execute'].execute(self)
     
     def memory(self):
@@ -117,8 +118,10 @@ class Simulator(object):
         if register == 0:
             return
         
+        print 'Writing %s to register %d' % (data, register)
         self.registers[register] = data
     
     #@decode_register
     def read_register(self, register):
+        print 'Reading register %d' % register
         return self.registers[register]

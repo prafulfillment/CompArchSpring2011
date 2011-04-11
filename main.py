@@ -1,5 +1,6 @@
 from pprint import pprint
 from instructions import parse_instruction
+from arguments import *
 import traceback
 import sys, time
 import grammar
@@ -7,14 +8,6 @@ import simulator
 
 #grammar.enable_debug()
 
-register_map = {}
-for x in xrange(32):
-    register_map['r%d' % x] = x
-
-def map_lookup(dct, item):
-    while item in dct:
-        item = dct[item]
-    return item
 
 filename = sys.argv[1]
 def read_asm_file(filename):
@@ -48,4 +41,6 @@ def read_asm_file(filename):
 insts = [parse_instruction(inst_name, [parse_arg(arg) for arg in args]) for inst_name, args in read_asm_file(filename)]
 assert all(inst is not None for inst in insts)
 
-sim = simulator.Simulator
+sim = simulator.Simulator()
+sim.load(insts)
+sim.run()
