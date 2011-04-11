@@ -1,5 +1,5 @@
-ori $r2, $r0, 1
-ori $r9, $r0, 0x1024
+ori $r2, $r0, 1      
+ori $r9, $r0, 0x1024   
 j 0x1014
 ori $r2, $r0, 0xbeef0
 ori $r9, $r0, 0x1000
