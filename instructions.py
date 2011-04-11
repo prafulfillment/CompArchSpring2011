@@ -162,28 +162,34 @@ class IType(Instruction):
 class AddI(IType):
     def execute(self, sim):
         self.put_result(self.rs.value(sim) + self.immediate.value(sim))
-        sim.results['execute'] = 
-    
-    def write(self, sim):
-        self.
-
 
 class AndI(IType):
-    pass
+    def execute(self, sim):
+        self.put_result(self.rs.value(sim) & self.immediate.value(sim))
 
 class OrI(IType):
-    pass
+    def execute(self, sim):
+        self.put_result(self.rs.value(sim) | self.immediate.value(sim))
 
 class SltI(IType):
-    pass
+    def execute(self, sim):
+        self.put_result(self.rs.value(sim) < self.immediate.value(sim))
 
 class Beq(IType):
     def destination(self):
         return None
 
+    def execute(self, sim):
+        if self.rs.value(sim) == self.rt.value(sim):
+            sim.pc += 4 * self.immediate.value(sim)
+
 class Bne(IType):
     def destination(self):
         return None
+
+    def execute(self, sim):
+        if not self.rs.value(sim) == self.rt.value(sim):
+            sim.pc += 4 * self.immediate.value(sim)
 
 class MemIType(IType):
     def __init__(self, rt, offset):
@@ -209,8 +215,6 @@ class SW(MemIType):
     def source(self):
         return [self.rt]
 
-
-
 class JType(Instruction):
     def __init__(self, target):
         assert isinstance(target, Register)
@@ -221,7 +225,6 @@ class JType(Instruction):
 
 class J(JType):
     pass
-
 
 supported_instructions = {
     'add':  Add,
@@ -254,7 +257,7 @@ def parse_instruction(instruction_name, args):
         raise
 
 def encode_instruction(instruction):
-    if isinstance
-
+    pass
 
 def decode_instruction(n):
+    pass
