@@ -38,7 +38,7 @@ def m_to_x(func):
     def wrapper(self, sim, *args, **kwargs):
         if sim.results['write'] is not None:
             print 'Checking M->X'
-            n_min2_stage = sim.stages[sim.stages.index('execute') - 2]
+            #n_min2_stage = sim.stages[sim.stages.index('execute') + 2]
 
             dest_register, dest_value = sim.results['write']
 
@@ -58,7 +58,7 @@ def m_to_m(func):
     def wrapper(self, sim, *args, **kwargs):
         if sim.results['write'] is not None:
             print 'Checking M->M'
-            n_min1_stage = sim.stages[sim.stages.index('memory') - 1]
+            n_min1_stage = sim.stages[sim.stages.index('memory') + 1]
 
             dest_register, dest_value = sim.results['write']
 
@@ -75,7 +75,16 @@ def m_to_m(func):
     return wrapper
 
 def accept_forwarding(func):
-    def wrapper(self, *args, **kwargs):
+    def wrapper(self, sim, *args, **kwargs):
+        for stage in sim.stages[sim.stages.index(sim.current_stage) + 1:-1]:
+            instruction = sim.pipeline[stage]
+            if instruction is None: continue
+            if instruction.destination() in self.source() and instruction.destination() not in self.forwarded:
+                print 'STALLING!'
+                sim.stall(sim.current_stage)
+                return None
+
+
         print '%s accepting forwarding' % self
         if hasattr(self, 'forwarded') and self.forwarded is not None:
             old_values = {}
@@ -89,14 +98,14 @@ def accept_forwarding(func):
                         print 'Rewriting register %s to return %d' % (source, self.forwarded[forwarded_register])
                         #break
             
-            return_value = func(self, *args, **kwargs)
+            return_value = func(self, sim, *args, **kwargs)
             
             for source in old_values:
                 source.value = old_values[source]
             
             return return_value
         
-        return func(self, *args, **kwargs)
+        return func(self, sim, *args, **kwargs)
     return wrapper
 
 def forwarding(func):
@@ -224,6 +233,11 @@ class JR(RType):
     def destination(self):
         return None
     
+    @forwarding
+    def execute(self, sim):
+        sim.jump_to(self.rt.value(sim))
+        sim.flush_before('execute')
+    
     def __str__(self):
         return '%s %s' % (self.name(), self.rt)
 
@@ -252,6 +266,11 @@ class AddI(IType):
     @forwarding
     def execute(self, sim):
         self.put_result(sim, self.rs.value(sim) + self.immediate.value(sim))
+
+class SubI(IType):
+    @forwarding
+    def execute(self, sim):
+        self.put_result(sim, self.rs.value(sim) - self.immediate.value(sim))
 
 class AndI(IType):
     @forwarding
@@ -331,10 +350,10 @@ class SW(MemIType):
     @init_forwarding
     @x_to_x
     @m_to_x
-    @m_to_m
     def execute(self, sim):
         pass
 
+    @m_to_m
     @accept_forwarding
     def memory(self, sim):
         sim.write_word(self.offset.value(sim), self.rt.value(sim))
@@ -368,6 +387,7 @@ supported_instructions = {
     'nor':  Nor,
     'slt':  Slt,
     'addi': AddI,
+    'subi': SubI,
     'andi': AndI,
     'ori':  OrI,
     'slti': SltI,

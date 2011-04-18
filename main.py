@@ -9,7 +9,6 @@ import simulator
 #grammar.enable_debug()
 
 
-filename = sys.argv[1]
 def read_asm_file(filename):
     with open(filename, 'rb') as f:
         data = f.read()
@@ -38,12 +37,22 @@ def read_asm_file(filename):
     
     return parsed_instructions
 
-for thing in read_asm_file(filename):
-    print thing
+def sim_file(filename, verbose=True):
+    insts = []
+    for line in read_asm_file(filename):
+        if line == []: continue
+        inst_name, args = line
+        insts.append(parse_instruction(inst_name, [parse_arg(arg) for arg in args]))
 
-insts = [parse_instruction(inst_name, [parse_arg(arg) for arg in args]) for inst_name, args in read_asm_file(filename)]
-assert all(inst is not None for inst in insts)
+    assert all(inst is not None for inst in insts)
 
-sim = simulator.Simulator()
-sim.load(insts)
-sim.run()
+    sim = simulator.Simulator(verbose=verbose)
+    sim.load(insts)
+    #sim.simple_run()
+    sim.run()
+
+    return sim
+
+if __name__ == '__main__':
+    filename = sys.argv[1]
+    sim_file(filename)
