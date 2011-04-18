@@ -197,7 +197,6 @@ class Simulator(EventDispatcher):
         if BASE_MEMORY <= self.pc < self.memory_size():
             self.pipeline['fetch'] = self.read_word(self.pc)
             if self.verbose: print 'Fetched new instruction from address 0x%x: %s' % (self.pc, self.pipeline['fetch'])
-            self.instruction_count += 1
         else:
             self.pipeline['fetch'] = None
         self.results['fetch'] = None
@@ -221,6 +220,7 @@ class Simulator(EventDispatcher):
         if self.pipeline['write'] is not None:
             if self.verbose: print '-' * 30, 'write stage for %s' % self.pipeline['write'], '-' * 30
             self.pipeline['write'].write(self)
+            self.instruction_count += 1
     
     #@decode_register
     def write_register(self, register, data):
