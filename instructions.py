@@ -111,9 +111,6 @@ def accept_forwarding(func):
 def forwarding(func):
     return init_forwarding(x_to_x(m_to_x(accept_forwarding(func))))
 
-def forwarding_with_m_to_m(func):
-    return init_forwarding(x_to_x(m_to_x(m_to_m(accept_forwarding(func)))))
-
 class Instruction(object):
     def fetch(self, sim):
         pass
