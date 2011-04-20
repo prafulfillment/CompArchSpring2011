@@ -1,8 +1,21 @@
+# Setup aliases for the registers
+register_map = {}
+for x in xrange(32):
+    register_map['r%d' % x] = x
+
+def map_lookup(dct, item):
+    """ Given an item, it will check that the item is in the dict.  If not it will return item.  If it
+    is, it will look up the value of item, set item to that value, and repeat.
+    """
+    while item in dct:
+        item = dct[item]
+    return item
+
 # ---------------------------------------------------------------------------- #
 # Instruction Argument Types                                                   #
 # ---------------------------------------------------------------------------- #
-
 class Argument(object):
+    """ Represents an argument to an instruction. """
     def is_register(self):
         return False
     
@@ -18,32 +31,8 @@ class Argument(object):
     def write(self, sim, value):
         raise RuntimeError("Cannot write to type %s" % type(self))
 
-register_map = {}
-for x in xrange(32):
-    register_map['r%d' % x] = x
-
-def map_lookup(dct, item):
-    while item in dct:
-        item = dct[item]
-    return item
-
-def decode_register(func):
-    """ Decorator for simulator functions that take a register in.  Decodes the
-    register into a register number.
-    """
-    def wrapper(self, register, *args, **kwargs):
-        original_register = register
-
-        while register in self.register_map:
-            register = self.register_map[register]
-        
-        if 0 <= register < 32:
-            return func(self, register_number, *args, **kwargs)
-        else:
-            raise RuntimeError('Invalid register given: %s' % original_register)
-    return wrapper
-
 class Register(Argument):
+    """ Represents a register argument. """
     def __init__(self, name):
         self.name = name
         self.register_number = map_lookup(register_map, name)
@@ -69,6 +58,7 @@ class Register(Argument):
         return True
 
 class Immediate(Argument):
+    """ Represents an immediate argument. """
     def __init__(self, number, base=10):
         self.number = int(number, base)
     
@@ -85,6 +75,7 @@ class Immediate(Argument):
         return True
 
 class Offset(Argument):
+    """ Represents an offset argument. """
     def __init__(self, offset, offset_from):
         self.offset = Immediate(offset)
         self.offset_from = parse_arg(offset_from)

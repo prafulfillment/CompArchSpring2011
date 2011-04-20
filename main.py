@@ -6,10 +6,18 @@ import sys, time
 import grammar
 import simulator
 
-#grammar.enable_debug()
-
-
 def read_asm_file(filename):
+    """ Reads the assembly file at the given filename.  If there is invalid syntax in the file, it
+    will throw an error.  This will return a list of parsed instructions in the following format:
+
+    [List of Instruction]
+    Where Instruction is:
+    [InstructionName [ListOf Argument]]
+    Where Argument is either Register, Offset, or Immediate
+    Where Register is: ['$', RegisterNumber]
+    Where Offset is: [Number, Register or Immediate]
+    Where Immediate is: [Number] or ['-', Number] or ['0x', HexNumber]
+    """
     with open(filename, 'rb') as f:
         data = f.read()
         print len(data.split('\n'))
@@ -38,6 +46,7 @@ def read_asm_file(filename):
     return parsed_instructions
 
 def sim_file(filename, verbose=True):
+    """ Simulates a given filename. """
     insts = []
     for line in read_asm_file(filename):
         if line == []: continue
@@ -48,7 +57,6 @@ def sim_file(filename, verbose=True):
 
     sim = simulator.Simulator(verbose=verbose)
     sim.load(insts)
-    #sim.simple_run()
     sim.run()
 
     return sim
