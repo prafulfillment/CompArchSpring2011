@@ -44,9 +44,6 @@ def raw_parse(insts):
 
 if __name__ == '__main__':
 	import unittest
-	from pprint import pprint
-	pprint(totalMatch("""ori $r1, $r0, 1 #test
-	addi $r2, $r0, 2""", instructions))
 
 	class Tests(unittest.TestCase):
 		def test_instructions(self):

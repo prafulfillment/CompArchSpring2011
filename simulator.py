@@ -154,7 +154,7 @@ class Simulator(object):
             if self.verbose: print hex(self.pc), self.registers
         
         print 'Execution finished'
-        print '%d instructions were run in %d cycles' % (self.instruction_count, self.cycle_count)
+        print '%d instructions were run in %d cycles with a CPI of %.03f' % (self.instruction_count, self.cycle_count, self.cpi())
         print self.registers
         print '[', ' '.join(['0x%x' % r for r in self.registers]), ']'
     
