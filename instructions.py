@@ -16,18 +16,18 @@ def init_forwarding(func):
 
 def x_to_x(func):
     def wrapper(self, sim, *args, **kwargs):
-        print 'X->X %s' % self
+        if sim.verbose: 'X->X %s' % self
         if sim.results['memory'] is not None:
             n_min1_stage = sim.stages[sim.stages.index('execute') - 1]
 
             dest_register, dest_value = sim.results['memory']
-            print 'X->X Checking forwarding'
+            if sim.verbose:  'X->X Checking forwarding'
 
             if dest_register.is_register() and \
                dest_register.register_number != 0 and \
                dest_register in self.source() and \
                dest_register not in self.forwarded:
-                print 'X->X Forwarding enabled for %s' % self
+                if sim.verbose:  'X->X Forwarding enabled for %s' % self
                 self.forwarded[dest_register] = dest_value
                 #self.forwarded = sim.results['execute']
         return func(self, sim, *args, **kwargs)
@@ -37,7 +37,7 @@ def x_to_x(func):
 def m_to_x(func):
     def wrapper(self, sim, *args, **kwargs):
         if sim.results['write'] is not None:
-            print 'Checking M->X'
+            if sim.verbose:  'Checking M->X'
             #n_min2_stage = sim.stages[sim.stages.index('execute') + 2]
 
             dest_register, dest_value = sim.results['write']
@@ -46,10 +46,10 @@ def m_to_x(func):
                dest_register.register_number != 0 and \
                dest_register in self.source() and \
                dest_register not in self.forwarded:
-                print 'M->X Forwarding enabled for %s' % self
+                if sim.verbose:  'M->X Forwarding enabled for %s' % self
                 #self.forwarded = sim.results['memory']
                 self.forwarded[dest_register] = dest_value
-            print self.forwarded
+            if sim.verbose:  self.forwarded
             
         return func(self, sim, *args, **kwargs)
     return wrapper
@@ -57,7 +57,7 @@ def m_to_x(func):
 def m_to_m(func):
     def wrapper(self, sim, *args, **kwargs):
         if sim.results['write'] is not None:
-            print 'Checking M->M'
+            if sim.verbose:  'Checking M->M'
             n_min1_stage = sim.stages[sim.stages.index('memory') + 1]
 
             dest_register, dest_value = sim.results['write']
@@ -66,10 +66,10 @@ def m_to_m(func):
                dest_register.register_number != 0 and \
                dest_register in self.source() and \
                isinstance(sim.pipeline[n_min1_stage], LW):
-                print 'M->M Forwarding enabled for %s' % self
+                if sim.verbose:  'M->M Forwarding enabled for %s' % self
                 #self.forwarded = sim.results['memory']
                 self.forwarded[dest_register] = dest_value
-            print self.forwarded
+            if sim.verbose:  self.forwarded
             
         return func(self, sim, *args, **kwargs)
     return wrapper
@@ -80,22 +80,22 @@ def accept_forwarding(func):
             instruction = sim.pipeline[stage]
             if instruction is None: continue
             if instruction.destination() in self.source() and instruction.destination() not in self.forwarded:
-                print 'STALLING!'
+                if sim.verbose:  'STALLING!'
                 sim.stall(sim.current_stage)
                 return None
 
 
-        print '%s accepting forwarding' % self
+        if sim.verbose:  '%s accepting forwarding' % self
         if hasattr(self, 'forwarded') and self.forwarded is not None:
             old_values = {}
-            print self.forwarded
+            if sim.verbose:  self.forwarded
             for forwarded_register in self.forwarded:
                 for source in self.source():
-                    print source, forwarded_register
+                    if sim.verbose:  source, forwarded_register
                     if source == forwarded_register:
                         old_values[source] = source.value
                         source.value = lambda sim, forwarded_register=forwarded_register: self.forwarded[forwarded_register]
-                        print 'Rewriting register %s to return %d' % (source, self.forwarded[forwarded_register])
+                        if sim.verbose:  'Rewriting register %s to return %d' % (source, self.forwarded[forwarded_register])
                         #break
             
             return_value = func(self, sim, *args, **kwargs)
@@ -129,7 +129,7 @@ class Instruction(object):
     
     def write(self, sim):
         if self.destination() is not None:
-            print 'result:', self.result()
+            if sim.verbose:  'result:', self.result()
             dest_register, value = self.result()
             dest_register.write(sim, value)
     
@@ -140,7 +140,7 @@ class Instruction(object):
         raise RuntimeError
     
     def put_result(self, sim, result, stage='execute'):
-        print 'Putting result,', result
+        if sim.verbose:  'Putting result,', result
         self._result = self.destination(), result
         sim.results[stage] = self.result()
     
@@ -407,7 +407,7 @@ def parse_instruction(instruction_name, args):
     try:
         return supported_instructions[instruction_name](*args)
     except Exception, e:
-        print 'Instruction parsing failed for %s' % instruction_name
+        if sim.verbose:  'Instruction parsing failed for %s' % instruction_name
         raise
 
 def encode_instruction(instruction):
