@@ -1,3 +1,5 @@
+#!/usr/bin/env python 
+
 from pprint import pprint
 from instructions import parse_instruction
 from arguments import *
