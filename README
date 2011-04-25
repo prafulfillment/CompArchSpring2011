@@ -1,8 +1,4 @@
 Spring 2011 - Comp Arch
 ------------------------
-TODO: 
-test more data hazards
-test code that needs stalls: memops last lw followed by an add needs to stall the add by one stage 
-comment code 
-
-
+main.py - Run given source .s file and provide detailed output
+test.py - Run all tests and provide summary output
