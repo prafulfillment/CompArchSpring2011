@@ -1,3 +1,5 @@
+from ctypes import c_int
+
 # Setup aliases for the registers
 register_map = {}
 for x in xrange(32):
@@ -60,7 +62,7 @@ class Register(Argument):
 class Immediate(Argument):
     """ Represents an immediate argument. """
     def __init__(self, number, base=10):
-        self.number = int(number, base)
+        self.number = c_int(int(number, base)).value
     
     def __str__(self):
         return 'Integer(%s)' % self.number
