@@ -1,5 +1,4 @@
 from arguments import *
-from ctypes import c_int
 
 # ---------------------------------------------------------------------------- #
 # The Instruction Constructs                                                   #
